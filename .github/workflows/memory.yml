@@ -28,7 +28,7 @@ jobs:
         uses: actions/checkout@v3
 
       - name: Build Docker Image
-        run: docker build -t <username>/memory-2026 .
+        run: docker build -t hadrien17200/memory-2026 .
 
   push-memory-2026:
     name: Push Docker Image
