@@ -1,0 +1,65 @@
+name: Memory CI/CD
+
+on:
+  push:
+    branches:
+      - develop
+
+jobs:
+  test-memory-2026:
+    name: Test JPEGs
+    runs-on: self-hosted
+    steps:
+      - name: Checkout repo
+        uses: actions/checkout@v3
+
+      - name: Find all JPG files
+        run: |
+          find . -type f \( -iname "*.jpg" -o -iname "*.jpeg" \) > jpg_files.txt
+
+      - name: Test JPEGs
+        run: |
+          while read file; do
+            echo "Testing $file"
+            file "$file"
+          done < jpg_files.txt
+
+  build-memory-2026:
+    name: Build Docker Image
+    runs-on: self-hosted
+    needs: test-memory-2026
+    steps:
+      - name: Checkout repo
+        uses: actions/checkout@v3
+
+      - name: Build Docker image
+        run: |
+          docker build -t <username>/memory-2026 .
+
+  push-memory-2026:
+    name: Push Docker Image
+    runs-on: self-hosted
+    needs: build-memory-2026
+    steps:
+      - name: Docker login
+        run: echo "${{ secrets.DOCKER_PASSWORD }}" | docker login -u "${{ secrets.DOCKER_USERNAME }}" --password-stdin
+
+      - name: Push image to Docker Hub
+        run: docker push <username>/memory-2026
+
+  deploy-memory-2026:
+    name: Deploy on host via SSH
+    runs-on: self-hosted
+    needs: push-memory-2026
+    steps:
+      - name: Deploy via SSH
+        uses: appleboy/ssh-action@v0.1.9
+        with:
+          host: ${{ secrets.HOST_IP }}
+          username: ${{ secrets.HOST_USER }}
+          key: ${{ secrets.SSH_PRIVATE_KEY }}
+          script: |
+            docker pull <username>/memory-2026
+            docker stop memory-game || true
+            docker rm memory-game || true
+            docker run -d --name memory-game -p 80:80 <username>/memory-2026
