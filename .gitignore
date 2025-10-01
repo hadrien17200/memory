@@ -1,1 +1,10 @@
 .DS_Store
+
+# Docker
+*.tar
+docker-compose.override.yml
+.docker/
+
+# Runner self-hosted
+_runner/
+runner/
