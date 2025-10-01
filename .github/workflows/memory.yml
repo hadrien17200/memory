@@ -1,4 +1,4 @@
-name: Memory CI/CD
+name: Memory Workflow
 
 on:
   push:
@@ -7,22 +7,17 @@ on:
 
 jobs:
   test-memory-2026:
-    name: Test JPEGs
+    name: Test JPEG files
     runs-on: self-hosted
     steps:
       - name: Checkout repo
         uses: actions/checkout@v3
 
-      - name: Find all JPG files
+      - name: Check JPG files
         run: |
-          find . -type f \( -iname "*.jpg" -o -iname "*.jpeg" \) > jpg_files.txt
-
-      - name: Test JPEGs
-        run: |
-          while read file; do
-            echo "Testing $file"
+          for file in $(find . -type f -name "*.jpg"); do
             file "$file"
-          done < jpg_files.txt
+          done
 
   build-memory-2026:
     name: Build Docker Image
@@ -32,9 +27,8 @@ jobs:
       - name: Checkout repo
         uses: actions/checkout@v3
 
-      - name: Build Docker image
-        run: |
-          docker build -t <username>/memory-2026 .
+      - name: Build Docker Image
+        run: docker build -t <username>/memory-2026 .
 
   push-memory-2026:
     name: Push Docker Image
@@ -48,18 +42,16 @@ jobs:
         run: docker push <username>/memory-2026
 
   deploy-memory-2026:
-    name: Deploy on host via SSH
+    name: Deploy via docker-compose on runner
     runs-on: self-hosted
     needs: push-memory-2026
     steps:
-      - name: Deploy via SSH
-        uses: appleboy/ssh-action@v0.1.9
-        with:
-          host: ${{ secrets.HOST_IP }}
-          username: ${{ secrets.HOST_USER }}
-          key: ${{ secrets.SSH_PRIVATE_KEY }}
-          script: |
-            docker pull <username>/memory-2026
-            docker stop memory-game || true
-            docker rm memory-game || true
-            docker run -d --name memory-game -p 80:80 <username>/memory-2026
+      - name: Checkout repo
+        uses: actions/checkout@v3
+
+      - name: Deploy with docker-compose
+        run: |
+          cd /home/hadrien/TpMemory/memory
+          docker-compose pull
+          docker-compose down
+          docker-compose up -d --build
